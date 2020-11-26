@@ -32,7 +32,9 @@ import (
 
 	appsv1alpha1 "github.com/m88i/nexus-operator/api/v1alpha1"
 	"github.com/m88i/nexus-operator/controllers/nexus/resource"
+	"github.com/m88i/nexus-operator/pkg/admission"
 	"github.com/m88i/nexus-operator/pkg/cluster/discovery"
+	"github.com/m88i/nexus-operator/pkg/framework"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -73,6 +75,7 @@ var _ = BeforeSuite(func(done Done) {
 	Expect(err).ToNot(HaveOccurred())
 	Expect(k8sManager).ToNot(BeNil())
 
+	framework.SetClient(k8sManager.GetClient())
 	discovery.SetClient(k8sdisc.NewDiscoveryClientForConfigOrDie(cfg))
 	err = (&NexusReconciler{
 		Client:     k8sManager.GetClient(),
@@ -80,6 +83,9 @@ var _ = BeforeSuite(func(done Done) {
 		Supervisor: resource.NewSupervisor(k8sManager.GetClient()),
 		Scheme:     k8sManager.GetScheme(),
 	}).SetupWithManager(k8sManager)
+	Expect(err).ToNot(HaveOccurred())
+
+	err = (&admission.Admitter{Nexus: &appsv1alpha1.Nexus{}}).SetupWebhookWithManager(k8sManager)
 	Expect(err).ToNot(HaveOccurred())
 
 	go func() {

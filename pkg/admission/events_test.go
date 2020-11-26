@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package validation
+package admission
 
 import (
 	ctx "context"
@@ -24,23 +24,26 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/m88i/nexus-operator/api/v1alpha1"
+	"github.com/m88i/nexus-operator/pkg/framework"
 	"github.com/m88i/nexus-operator/pkg/test"
 )
 
 func Test_createChangedNexusEvent(t *testing.T) {
-	nexus := &v1alpha1.Nexus{ObjectMeta: metav1.ObjectMeta{Name: "nexus", Namespace: "test"}}
+	nexus := &v1alpha1.Nexus{ObjectMeta: metav1.ObjectMeta{Name: "validatable", Namespace: "test"}}
 	client := test.NewFakeClientBuilder().Build()
+	framework.SetClient(client)
+
 	field := "some-field"
 
 	// first, let's test a failure
 	client.SetMockErrorForOneRequest(fmt.Errorf("mock err"))
-	createChangedNexusEvent(nexus, client.Scheme(), client, field)
+	createChangedNexusEvent(nexus, field)
 	eventList := &corev1.EventList{}
 	_ = client.List(ctx.TODO(), eventList)
 	assert.Len(t, eventList.Items, 0)
 
 	// now a successful one
-	createChangedNexusEvent(nexus, client.Scheme(), client, field)
+	createChangedNexusEvent(nexus, field)
 	_ = client.List(ctx.TODO(), eventList)
 	assert.Len(t, eventList.Items, 1)
 	event := eventList.Items[0]

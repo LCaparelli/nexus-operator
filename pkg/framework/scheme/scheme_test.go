@@ -12,8 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package update
+package scheme
 
-import "github.com/m88i/nexus-operator/pkg/logger"
+import (
+	"testing"
 
-var log = logger.GetLogger("update_monitor")
+	"github.com/stretchr/testify/assert"
+)
+
+func TestScheme(t *testing.T) {
+	s := Scheme()
+	assert.Equal(t, s, scheme)
+}

@@ -12,23 +12,30 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package validation
+package scheme
 
 import (
+	routev1 "github.com/openshift/api/route/v1"
+	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 
 	"github.com/m88i/nexus-operator/api/v1alpha1"
-	"github.com/m88i/nexus-operator/pkg/cluster/kubernetes"
-	"github.com/m88i/nexus-operator/pkg/logger"
 )
 
-const changedNexusReason = "NexusSpecChanged"
+var scheme *runtime.Scheme
 
-func createChangedNexusEvent(nexus *v1alpha1.Nexus, scheme *runtime.Scheme, c client.Client, field string) {
-	log := logger.GetLoggerWithResource("validation_event", nexus)
-	err := kubernetes.RaiseWarnEventf(nexus, scheme, c, changedNexusReason, "'%s' has been changed in %s/%s. Check the logs for more information", field, nexus.Namespace, nexus.Name)
-	if err != nil {
-		log.Error(err, "Unable to raise event for changing in Nexus CR", "field", field)
-	}
+func init() {
+	scheme = runtime.NewScheme()
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(appsv1.AddToScheme(scheme))
+	utilruntime.Must(routev1.Install(scheme))
+	utilruntime.Must(v1alpha1.AddToScheme(scheme))
+	// +kubebuilder:scaffold:scheme
+}
+
+// Scheme returns the default scheme necessary for proper functioning of the operator
+func Scheme() *runtime.Scheme {
+	return scheme
 }

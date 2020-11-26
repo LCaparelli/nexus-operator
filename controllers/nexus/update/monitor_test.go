@@ -24,6 +24,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/m88i/nexus-operator/api/v1alpha1"
+	"github.com/m88i/nexus-operator/pkg/framework"
 	"github.com/m88i/nexus-operator/pkg/test"
 )
 
@@ -44,6 +45,7 @@ func TestMonitorUpdate(t *testing.T) {
 		Spec:       v1alpha1.NexusSpec{Image: image},
 	}
 	c := test.NewFakeClientBuilder(nexus).Build()
+	framework.SetClient(c)
 
 	// Not in an update and will not start one
 	deployedDep := baseDeployment.DeepCopy()
@@ -51,14 +53,14 @@ func TestMonitorUpdate(t *testing.T) {
 	deployedDep.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s:%s", image, "3.25.0")
 	requiredDep.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s:%s", image, "3.25.0")
 
-	err := HandleUpdate(nexus, deployedDep, requiredDep, c.Scheme(), c)
+	err := HandleUpdate(nexus, deployedDep, requiredDep)
 	assert.Nil(t, err)
 	assert.Len(t, nexus.Status.UpdateConditions, 0)
 
 	// Not in an update and will start one
 	requiredDep.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s:%s", image, "3.25.1")
 
-	err = HandleUpdate(nexus, deployedDep, requiredDep, c.Scheme(), c)
+	err = HandleUpdate(nexus, deployedDep, requiredDep)
 	assert.Nil(t, err)
 	assert.Len(t, nexus.Status.UpdateConditions, 1)
 	assert.Equal(t, fmt.Sprintf(updateStartFormat, "3.25.0", "3.25.1"), nexus.Status.UpdateConditions[0])
@@ -67,14 +69,14 @@ func TestMonitorUpdate(t *testing.T) {
 	deployedDep.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s:%s", image, "3.25.0")
 	requiredDep.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s:%s", image, "3.25.2")
 
-	err = HandleUpdate(nexus, deployedDep, requiredDep, c.Scheme(), c)
+	err = HandleUpdate(nexus, deployedDep, requiredDep)
 	assert.Nil(t, err)
 	assert.Len(t, nexus.Status.UpdateConditions, 1)
 	assert.Equal(t, fmt.Sprintf(updateStartFormat, "3.25.0", "3.25.2"), nexus.Status.UpdateConditions[0])
 
 	// In an update and it's still progressing
 	deployedDep.Spec.Template.Spec.Containers[0].Image = requiredDep.Spec.Template.Spec.Containers[0].Image
-	err = HandleUpdate(nexus, deployedDep, requiredDep, c.Scheme(), c)
+	err = HandleUpdate(nexus, deployedDep, requiredDep)
 	assert.Nil(t, err)
 	assert.Len(t, nexus.Status.UpdateConditions, 1)
 	assert.Equal(t, fmt.Sprintf(updateStartFormat, "3.25.0", "3.25.2"), nexus.Status.UpdateConditions[0])
@@ -85,7 +87,7 @@ func TestMonitorUpdate(t *testing.T) {
 		Reason: "NewReplicaSetAvailable",
 	}}
 
-	err = HandleUpdate(nexus, deployedDep, requiredDep, c.Scheme(), c)
+	err = HandleUpdate(nexus, deployedDep, requiredDep)
 	assert.Nil(t, err)
 	assert.Len(t, nexus.Status.UpdateConditions, 2)
 	assert.Equal(t, fmt.Sprintf(updateStartFormat, "3.25.0", "3.25.2"), nexus.Status.UpdateConditions[0])
@@ -99,7 +101,7 @@ func TestMonitorUpdate(t *testing.T) {
 		Status: "False",
 	}}
 
-	err = HandleUpdate(nexus, deployedDep, requiredDep, c.Scheme(), c)
+	err = HandleUpdate(nexus, deployedDep, requiredDep)
 	assert.Nil(t, err)
 	assert.Len(t, nexus.Status.UpdateConditions, 2)
 	assert.Equal(t, fmt.Sprintf(updateStartFormat, "3.25.0", "3.25.2"), nexus.Status.UpdateConditions[0])
@@ -117,7 +119,7 @@ func TestMonitorUpdate(t *testing.T) {
 	}}
 	c.SetMockError(fmt.Errorf("mock error"))
 
-	err = HandleUpdate(nexus, deployedDep, requiredDep, c.Scheme(), c)
+	err = HandleUpdate(nexus, deployedDep, requiredDep)
 	assert.NotNil(t, err)
 	assert.False(t, test.EventExists(c, failedUpdateReason))
 
@@ -125,7 +127,7 @@ func TestMonitorUpdate(t *testing.T) {
 	nexus.Status.UpdateConditions = []string{fmt.Sprintf(updateStartPrefix+"wrong format %s %s", "3.25.0", "3.25.2")}
 	nexus.Spec.AutomaticUpdate.Disabled = false
 
-	err = HandleUpdate(nexus, deployedDep, requiredDep, c.Scheme(), c)
+	err = HandleUpdate(nexus, deployedDep, requiredDep)
 	assert.Nil(t, err)
 	assert.Nil(t, nexus.Status.UpdateConditions)
 
@@ -133,7 +135,7 @@ func TestMonitorUpdate(t *testing.T) {
 	nexus.Status.UpdateConditions = []string{fmt.Sprintf(updateStartFormat, "3.25.0", "3.25.1")}
 	nexus.Spec.AutomaticUpdate.Disabled = true
 
-	err = HandleUpdate(nexus, deployedDep, requiredDep, c.Scheme(), c)
+	err = HandleUpdate(nexus, deployedDep, requiredDep)
 	assert.Nil(t, err)
 	assert.Nil(t, nexus.Status.UpdateConditions)
 }

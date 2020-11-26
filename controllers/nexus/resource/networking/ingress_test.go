@@ -33,7 +33,7 @@ var (
 		},
 		Spec: v1alpha1.NexusSpec{
 			Networking: v1alpha1.NexusNetworking{
-				Expose:   true,
+				Expose:   func() *bool { b := true; return &b }(),
 				ExposeAs: v1alpha1.IngressExposeType,
 				Host:     "ingress.tls.test.com",
 				TLS: v1alpha1.NexusNetworkingTLS{

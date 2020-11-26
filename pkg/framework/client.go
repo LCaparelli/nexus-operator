@@ -12,8 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package update
+package framework
 
-import "github.com/m88i/nexus-operator/pkg/logger"
+import (
+	"sigs.k8s.io/controller-runtime/pkg/client"
+)
 
-var log = logger.GetLogger("update_monitor")
+var cli client.Client
+
+// SetClient sets the client for the package
+func SetClient(c client.Client) {
+	cli = c
+}
+
+// Client returns a client to interact with the API Server. SetClient must have been called previously.
+func Client() client.Client {
+	return cli
+}

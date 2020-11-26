@@ -12,8 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package update
+package admission
 
-import "github.com/m88i/nexus-operator/pkg/logger"
+import (
+	"github.com/m88i/nexus-operator/pkg/cluster/kubernetes"
+	"github.com/m88i/nexus-operator/pkg/logger"
+)
 
-var log = logger.GetLogger("update_monitor")
+const changedNexusReason = "NexusSpecChanged"
+
+func createChangedNexusEvent(d Defaultable, field string) {
+	log := logger.GetLoggerWithResource("validation_event", d)
+	err := kubernetes.RaiseWarnEventf(d, changedNexusReason, "'%s' has been changed in %s/%s. Check the logs for more information", field, d.GetNamespace(), d.GetName())
+	if err != nil {
+		log.Error(err, "Unable to raise event for changing in Nexus CR", "field", field)
+	}
+}

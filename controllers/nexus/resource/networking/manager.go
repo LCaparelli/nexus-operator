@@ -96,7 +96,7 @@ func NewManager(nexus *v1alpha1.Nexus, client client.Client) (*Manager, error) {
 
 // GetRequiredResources returns the resources initialized by the manager
 func (m *Manager) GetRequiredResources() ([]resource.KubernetesResource, error) {
-	if !m.nexus.Spec.Networking.Expose {
+	if !*m.nexus.Spec.Networking.Expose {
 		return nil, nil
 	}
 

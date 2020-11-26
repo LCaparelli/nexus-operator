@@ -25,7 +25,7 @@ import (
 
 	"github.com/m88i/nexus-operator/api/v1alpha1"
 	"github.com/m88i/nexus-operator/controllers/nexus/resource/meta"
-	"github.com/m88i/nexus-operator/controllers/nexus/resource/validation"
+	"github.com/m88i/nexus-operator/pkg/admission"
 )
 
 func Test_newDeployment_WithoutPersistence(t *testing.T) {
@@ -43,15 +43,15 @@ func Test_newDeployment_WithoutPersistence(t *testing.T) {
 			},
 			// a valid Liveness Probe should have successThreshold == 1
 			// but we don't care about that here (this is tested on the manager's tests)
-			LivenessProbe:  validation.DefaultProbe,
-			ReadinessProbe: validation.DefaultProbe,
-			Image:          validation.NexusCommunityImage,
+			LivenessProbe:  admission.DefaultProbe,
+			ReadinessProbe: admission.DefaultProbe,
+			Image:          admission.NexusCommunityImage,
 		},
 	}
 	deployment := newDeployment(nexus)
 
 	assert.Len(t, deployment.Spec.Template.Spec.Containers, 1)
-	assert.Equal(t, validation.NexusCommunityImage, deployment.Spec.Template.Spec.Containers[0].Image)
+	assert.Equal(t, admission.NexusCommunityImage, deployment.Spec.Template.Spec.Containers[0].Image)
 	assert.Equal(t, int32(1), *deployment.Spec.Replicas)
 
 	assert.Equal(t, int32(nexusContainerPort), deployment.Spec.Template.Spec.Containers[0].LivenessProbe.HTTPGet.Port.IntVal)
@@ -80,8 +80,8 @@ func Test_newDeployment_WithPersistence(t *testing.T) {
 			},
 			// a valid Liveness Probe should have successThreshold == 1
 			// but we don't care about that here (this is tested on the manager's tests)
-			LivenessProbe:  validation.DefaultProbe,
-			ReadinessProbe: validation.DefaultProbe,
+			LivenessProbe:  admission.DefaultProbe,
+			ReadinessProbe: admission.DefaultProbe,
 		},
 	}
 	deployment := newDeployment(nexus)
@@ -161,7 +161,7 @@ func Test_customProbes(t *testing.T) {
 				SuccessThreshold:    3,
 				TimeoutSeconds:      15,
 			},
-			ReadinessProbe: validation.DefaultProbe,
+			ReadinessProbe: admission.DefaultProbe,
 		},
 	}
 	deployment := newDeployment(nexus)
@@ -169,7 +169,7 @@ func Test_customProbes(t *testing.T) {
 	assert.Len(t, deployment.Spec.Template.Spec.Containers, 1)
 	assert.Equal(t, int32(1), deployment.Spec.Template.Spec.Containers[0].LivenessProbe.FailureThreshold)
 	assert.Equal(t, int32(0), deployment.Spec.Template.Spec.Containers[0].LivenessProbe.InitialDelaySeconds)
-	assert.Equal(t, validation.DefaultProbe.InitialDelaySeconds, deployment.Spec.Template.Spec.Containers[0].ReadinessProbe.InitialDelaySeconds)
+	assert.Equal(t, admission.DefaultProbe.InitialDelaySeconds, deployment.Spec.Template.Spec.Containers[0].ReadinessProbe.InitialDelaySeconds)
 }
 
 func Test_applyJVMArgs_withRandomPassword(t *testing.T) {
@@ -188,8 +188,8 @@ func Test_applyJVMArgs_withRandomPassword(t *testing.T) {
 			GenerateRandomAdminPassword: true,
 			// a valid Liveness Probe should have successThreshold == 1
 			// but we don't care about that here (this is tested on the manager's tests)
-			LivenessProbe:  validation.DefaultProbe,
-			ReadinessProbe: validation.DefaultProbe,
+			LivenessProbe:  admission.DefaultProbe,
+			ReadinessProbe: admission.DefaultProbe,
 		},
 	}
 	deployment := newDeployment(nexus)
@@ -214,8 +214,8 @@ func Test_applyJVMArgs_withDefaultValues(t *testing.T) {
 			AutomaticUpdate: v1alpha1.NexusAutomaticUpdate{Disabled: true},
 			// a valid Liveness Probe should have successThreshold == 1
 			// but we don't care about that here (this is tested on the manager's tests)
-			LivenessProbe:  validation.DefaultProbe,
-			ReadinessProbe: validation.DefaultProbe,
+			LivenessProbe:  admission.DefaultProbe,
+			ReadinessProbe: admission.DefaultProbe,
 		},
 	}
 	deployment := newDeployment(nexus)

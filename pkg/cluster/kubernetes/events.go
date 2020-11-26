@@ -22,23 +22,26 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/reference"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/m88i/nexus-operator/pkg/framework"
+	"github.com/m88i/nexus-operator/pkg/framework/scheme"
 )
 
-func RaiseInfoEventf(obj runtime.Object, scheme *runtime.Scheme, c client.Client, reason, messageFormat string, args ...interface{}) error {
-	return raiseEvent(obj, scheme, c, reason, fmt.Sprintf(messageFormat, args...), corev1.EventTypeNormal)
+func RaiseInfoEventf(obj runtime.Object, reason, messageFormat string, args ...interface{}) error {
+	return raiseEvent(obj, reason, fmt.Sprintf(messageFormat, args...), corev1.EventTypeNormal)
 }
 
-func RaiseWarnEventf(obj runtime.Object, scheme *runtime.Scheme, c client.Client, reason, messageFormat string, args ...interface{}) error {
-	return raiseEvent(obj, scheme, c, reason, fmt.Sprintf(messageFormat, args...), corev1.EventTypeWarning)
+func RaiseWarnEventf(obj runtime.Object, reason, messageFormat string, args ...interface{}) error {
+	return raiseEvent(obj, reason, fmt.Sprintf(messageFormat, args...), corev1.EventTypeWarning)
 }
 
-func raiseEvent(obj runtime.Object, scheme *runtime.Scheme, c client.Client, reason, message, eventType string) error {
-	ref, err := reference.GetReference(scheme, obj)
+func raiseEvent(obj runtime.Object, reason, message, eventType string) error {
+	ref, err := reference.GetReference(scheme.Scheme(), obj)
 	if err != nil {
 		return fmt.Errorf("unable to generate reference from object: %v", err)
 	}
 	event := newEvent(ref, reason, message, eventType)
+	c := framework.Client()
 	if err := c.Create(ctx.Background(), event); err != nil {
 		return fmt.Errorf("unable to create event: %v", err)
 	}

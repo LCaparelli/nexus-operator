@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package update
+package framework
 
 import (
 	"fmt"
@@ -43,11 +43,11 @@ var (
 
 // HigherVersion checks if thisTag is of a higher version than otherTag
 func HigherVersion(thisTag, otherTag string) (bool, error) {
-	thisMinor, err := getMinor(thisTag)
+	thisMinor, err := ParseMinor(thisTag)
 	if err != nil {
 		return false, fmt.Errorf(tagParseFailureFormat, thisTag, err)
 	}
-	otherMinor, err := getMinor(otherTag)
+	otherMinor, err := ParseMinor(otherTag)
 	if err != nil {
 		return false, fmt.Errorf(tagParseFailureFormat, otherTag, err)
 	}
@@ -55,11 +55,11 @@ func HigherVersion(thisTag, otherTag string) (bool, error) {
 		return thisMinor > otherMinor, nil
 	}
 
-	thisMicro, err := getMicro(thisTag)
+	thisMicro, err := ParseMicro(thisTag)
 	if err != nil {
 		return false, fmt.Errorf(tagParseFailureFormat, thisTag, err)
 	}
-	otherMicro, err := getMicro(otherTag)
+	otherMicro, err := ParseMicro(otherTag)
 	if err != nil {
 		return false, fmt.Errorf(tagParseFailureFormat, otherTag, err)
 	}
@@ -137,18 +137,18 @@ func getTags() ([]string, error) {
 func parseTagsAndUpdate(tags []string) error {
 	for _, candidateTag := range tags {
 		if candidateTag != "latest" {
-			candidateMinor, err := getMinor(candidateTag)
+			candidateMinor, err := ParseMinor(candidateTag)
 			if err != nil {
 				return fmt.Errorf(tagParseFailureFormat, candidateTag, err)
 			}
-			candidateMicro, err := getMicro(candidateTag)
+			candidateMicro, err := ParseMicro(candidateTag)
 			if err != nil {
 				return fmt.Errorf(tagParseFailureFormat, candidateTag, err)
 			}
 			storedTag, ok := latestMicros[candidateMinor]
 			if ok {
 				// we can safely ignore the error. It wouldn't be stored if it was invalid
-				storedMicro, _ := getMicro(storedTag)
+				storedMicro, _ := ParseMicro(storedTag)
 				if candidateMicro > storedMicro {
 					latestMicros[candidateMinor] = candidateTag
 				}
@@ -160,11 +160,13 @@ func parseTagsAndUpdate(tags []string) error {
 	return nil
 }
 
-func getMinor(tag string) (int, error) {
+// ParseMinor takes an image tag and returns its minor version. Returns an error if it's unable to parse it.
+func ParseMinor(tag string) (int, error) {
 	return strconv.Atoi(strings.Split(tag, ".")[1])
 }
 
-func getMicro(tag string) (int, error) {
+// ParseMicro takes an image tag and returns its micro version. Returns an error if it's unable to parse it.
+func ParseMicro(tag string) (int, error) {
 	// special case for the community tag 3.9.0-01
 	if tag == "3.9.0-01" {
 		return 1, nil

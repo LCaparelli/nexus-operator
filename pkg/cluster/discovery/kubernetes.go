@@ -30,3 +30,17 @@ func IsIngressAvailable() (bool, error) {
 func IsLegacyIngressAvailable() (bool, error) {
 	return hasGroupVersionKind(networkingv1beta1.SchemeGroupVersion.Group, networkingv1beta1.SchemeGroupVersion.Version, kind.IngressKind)
 }
+
+// AnyIngressAvailable checks if the cluster supports Ingresses from k8s.io/api/networking/v1beta1 or k8s.io/api/networking/v1
+func AnyIngressAvailable() (bool, error) {
+	legacyIngressAvailable, legacyErr := IsLegacyIngressAvailable()
+	ingressAvailable, err := IsIngressAvailable()
+
+	if legacyErr != nil && err != nil {
+		// both ran into an error, can't tell if any is available, let's just return the first error
+		return false, legacyErr
+	}
+
+	// at least one of them didn't error, so at least one answer is valid (which is enough)
+	return legacyIngressAvailable || ingressAvailable, nil
+}

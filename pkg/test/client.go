@@ -26,7 +26,6 @@ import (
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/discovery"
 	discfake "k8s.io/client-go/discovery/fake"
-	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	clienttesting "k8s.io/client-go/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -34,7 +33,7 @@ import (
 
 	"github.com/m88i/nexus-operator/api/v1alpha1"
 	"github.com/m88i/nexus-operator/pkg/framework/kind"
-	"github.com/m88i/nexus-operator/pkg/util"
+	"github.com/m88i/nexus-operator/pkg/framework/scheme"
 )
 
 const (
@@ -45,27 +44,22 @@ const (
 // the desired cluster capabilities
 type FakeClientBuilder struct {
 	initObjs  []runtime.Object
-	scheme    *runtime.Scheme
 	resources []*metav1.APIResourceList
 }
 
 // NewFakeClientBuilder will create a new fake client that is aware of minimal resource types
 // and stores initObjs for initialization later
 func NewFakeClientBuilder(initObjs ...runtime.Object) *FakeClientBuilder {
-	s := scheme.Scheme
-	util.Must(minimumSchemeBuilder().AddToScheme(s))
 	res := []*metav1.APIResourceList{{GroupVersion: v1alpha1.GroupVersion.String()}}
 
 	return &FakeClientBuilder{
 		initObjs:  initObjs,
-		scheme:    s,
 		resources: res,
 	}
 }
 
 // OnOpenshift makes the fake client aware of resources from Openshift
 func (b *FakeClientBuilder) OnOpenshift() *FakeClientBuilder {
-	util.Must(schemeBuilderOnOCP().AddToScheme(b.scheme))
 	b.resources = append(b.resources,
 		&metav1.APIResourceList{GroupVersion: openshiftGroupVersion},
 		&metav1.APIResourceList{GroupVersion: routev1.GroupVersion.String(), APIResources: []metav1.APIResource{{Kind: kind.RouteKind}}})
@@ -74,14 +68,12 @@ func (b *FakeClientBuilder) OnOpenshift() *FakeClientBuilder {
 
 // WithIngress makes the fake client aware of v1 Ingresses
 func (b *FakeClientBuilder) WithIngress() *FakeClientBuilder {
-	util.Must(schemeBuilderWithIngress().AddToScheme(b.scheme))
 	b.resources = append(b.resources, &metav1.APIResourceList{GroupVersion: networkingv1.SchemeGroupVersion.String(), APIResources: []metav1.APIResource{{Kind: kind.IngressKind}}})
 	return b
 }
 
 // WithLegacyIngress makes the fake client aware of v1beta1 Ingresses
 func (b *FakeClientBuilder) WithLegacyIngress() *FakeClientBuilder {
-	util.Must(schemeBuilderWithLegacyIngress().AddToScheme(b.scheme))
 	b.resources = append(b.resources, &metav1.APIResourceList{GroupVersion: networkingv1beta1.SchemeGroupVersion.String(), APIResources: []metav1.APIResource{{Kind: kind.IngressKind}}})
 	return b
 }
@@ -89,8 +81,7 @@ func (b *FakeClientBuilder) WithLegacyIngress() *FakeClientBuilder {
 // Build returns the fake discovery client
 func (b *FakeClientBuilder) Build() *FakeClient {
 	return &FakeClient{
-		scheme: b.scheme,
-		client: fake.NewFakeClientWithScheme(b.scheme, b.initObjs...),
+		client: fake.NewFakeClientWithScheme(scheme.Scheme(), b.initObjs...),
 		disc: &discfake.FakeDiscovery{
 			Fake: &clienttesting.Fake{
 				Resources: b.resources,
@@ -99,37 +90,15 @@ func (b *FakeClientBuilder) Build() *FakeClient {
 	}
 }
 
-func minimumSchemeBuilder() *runtime.SchemeBuilder {
-	return &runtime.SchemeBuilder{v1alpha1.SchemeBuilder.AddToScheme}
-}
-
-func schemeBuilderOnOCP() *runtime.SchemeBuilder {
-	return &runtime.SchemeBuilder{routev1.Install}
-}
-
-func schemeBuilderWithIngress() *runtime.SchemeBuilder {
-	return &runtime.SchemeBuilder{networkingv1.AddToScheme}
-}
-
-func schemeBuilderWithLegacyIngress() *runtime.SchemeBuilder {
-	return &runtime.SchemeBuilder{networkingv1beta1.AddToScheme}
-}
-
 // FakeClient wraps an API fake client to allow mocked error responses
 // Useful for covering errors other than NotFound
 // It also wraps a fake discovery client
 // FakeClient implements both client.Client and discovery.DiscoveryInterface
 type FakeClient struct {
-	scheme           *runtime.Scheme
 	client           client.Client
 	disc             discovery.DiscoveryInterface
 	mockErr          error
 	shouldClearError bool
-}
-
-// Scheme returns the fake client's scheme
-func (c *FakeClient) Scheme() *runtime.Scheme {
-	return c.scheme
 }
 
 // SetMockError sets the error which should be returned for the following requests

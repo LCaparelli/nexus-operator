@@ -40,7 +40,7 @@ import (
 var nodePortNexus = &v1alpha1.Nexus{
 	ObjectMeta: metav1.ObjectMeta{Namespace: "test", Name: "nexus"},
 	Spec: v1alpha1.NexusSpec{
-		Networking: v1alpha1.NexusNetworking{Expose: true, NodePort: 31031, ExposeAs: v1alpha1.NodePortExposeType},
+		Networking: v1alpha1.NexusNetworking{Expose: func() *bool { b := true; return &b }(), NodePort: 31031, ExposeAs: v1alpha1.NodePortExposeType},
 	},
 }
 
@@ -134,7 +134,7 @@ func TestManager_GetRequiredResources(t *testing.T) {
 	// correctness of the generated resources is tested elsewhere
 	// here we just want to check if they have been created and returned
 	// first, let's test a Nexus which does not expose
-	nexus := &v1alpha1.Nexus{Spec: v1alpha1.NexusSpec{Networking: v1alpha1.NexusNetworking{Expose: false}}}
+	nexus := &v1alpha1.Nexus{Spec: v1alpha1.NexusSpec{Networking: v1alpha1.NexusNetworking{Expose: func() *bool { b := false; return &b }()}}}
 	mgr := &Manager{
 		nexus:  nexus,
 		client: test.NewFakeClientBuilder().Build(),

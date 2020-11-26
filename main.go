@@ -31,10 +31,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	appsm88iiov1alpha1 "github.com/m88i/nexus-operator/api/v1alpha1"
 	appsv1alpha1 "github.com/m88i/nexus-operator/api/v1alpha1"
 	"github.com/m88i/nexus-operator/controllers"
 	"github.com/m88i/nexus-operator/controllers/nexus/resource"
+	"github.com/m88i/nexus-operator/pkg/admission"
 	"github.com/m88i/nexus-operator/pkg/cluster/discovery"
+	"github.com/m88i/nexus-operator/pkg/framework"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -48,6 +51,7 @@ func init() {
 	utilruntime.Must(routev1.Install(scheme))
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(appsv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(appsm88iiov1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -87,6 +91,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	framework.SetClient(mgr.GetClient())
 	discovery.SetClient(k8sdisc.NewDiscoveryClientForConfigOrDie(ctrl.GetConfigOrDie()))
 	if err = (&controllers.NexusReconciler{
 		Client:     mgr.GetClient(),
@@ -95,6 +100,14 @@ func main() {
 		Supervisor: resource.NewSupervisor(mgr.GetClient()),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Nexus")
+		os.Exit(1)
+	}
+	if err = (&admission.Admitter{Nexus: &appsm88iiov1alpha1.Nexus{}}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "Nexus")
+		os.Exit(1)
+	}
+	if err = (&appsm88iiov1alpha1.Nexus{}).SetupWebhookWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create webhook", "webhook", "Nexus")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

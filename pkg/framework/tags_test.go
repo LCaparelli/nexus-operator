@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package update
+package framework
 
 import (
 	"testing"
@@ -147,31 +147,31 @@ func TestParseTagsAndUpdate(t *testing.T) {
 	assert.Error(t, parseTagsAndUpdate(invalidMicro))
 }
 
-func TestGetMinor(t *testing.T) {
+func TestParseMinor(t *testing.T) {
 	validTag := "3.25.0"
 	invalidTag := "3..0"
 
-	minor, err := getMinor(validTag)
+	minor, err := ParseMinor(validTag)
 	assert.Nil(t, err)
 	assert.Equal(t, 25, minor)
 
-	_, err = getMinor(invalidTag)
+	_, err = ParseMinor(invalidTag)
 	assert.NotNil(t, err)
 }
 
-func TestGetMicro(t *testing.T) {
+func TestParseMicro(t *testing.T) {
 	validTag := "3.25.0"
 	specialCaseTag := "3.9.0-01"
 	invalidTag := "3.25."
 
-	micro, err := getMicro(validTag)
+	micro, err := ParseMicro(validTag)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, micro)
 
-	micro, err = getMicro(specialCaseTag)
+	micro, err = ParseMicro(specialCaseTag)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, micro)
 
-	_, err = getMicro(invalidTag)
+	_, err = ParseMicro(invalidTag)
 	assert.NotNil(t, err)
 }

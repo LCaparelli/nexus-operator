@@ -43,8 +43,6 @@ import (
 	"github.com/m88i/nexus-operator/pkg/cluster/kubernetes"
 	"github.com/m88i/nexus-operator/pkg/cluster/openshift"
 	"github.com/m88i/nexus-operator/pkg/framework"
-
-	"github.com/m88i/nexus-operator/controllers/nexus/resource/validation"
 )
 
 const (
@@ -94,21 +92,14 @@ func (r *NexusReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return result, err
 	}
 
-	v, err := validation.NewValidator(r, r.Scheme)
-	if err != nil {
-		// Error using the discovery API - requeue the request.
-		return result, err
-	}
-
-	validatedNexus, err := v.SetDefaultsAndValidate(instance)
 	// In case of any errors from here, we should update the Nexus CR and its status
-	defer r.updateNexus(validatedNexus, instance, &err)
+	defer r.updateNexusStatus(instance, &err)
 	if err != nil {
 		return result, err
 	}
 
 	// Initialize the resource managers
-	err = r.Supervisor.InitManagers(validatedNexus)
+	err = r.Supervisor.InitManagers(instance)
 	if err != nil {
 		return result, err
 	}
@@ -129,7 +120,7 @@ func (r *NexusReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 	deltas := comparator.Compare(deployedRes, requiredRes)
 
-	writer := write.New(r).WithOwnerController(validatedNexus, r.Scheme)
+	writer := write.New(r).WithOwnerController(instance, r.Scheme)
 	for resourceType, delta := range deltas {
 		if !delta.HasChanges() {
 			continue
@@ -153,12 +144,12 @@ func (r *NexusReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		}
 	}
 
-	if err = r.ensureServerUpdates(validatedNexus); err != nil {
+	if err = r.ensureServerUpdates(instance); err != nil {
 		return result, err
 	}
 
 	// Check if we are performing an update and act upon it if needed
-	err = r.handleUpdate(validatedNexus, requiredRes, deployedRes)
+	err = r.handleUpdate(instance, requiredRes, deployedRes)
 	return result, err
 }
 
@@ -190,7 +181,7 @@ func (r *NexusReconciler) handleUpdate(nexus *appsv1alpha1.Nexus, required, depl
 		return nil
 	}
 	deployedDeployment := deployedDeployments[0].(*appsv1.Deployment)
-	return update.HandleUpdate(nexus, deployedDeployment, requiredDeployment, r.Scheme, r)
+	return update.HandleUpdate(nexus, deployedDeployment, requiredDeployment)
 }
 
 func (r *NexusReconciler) ensureServerUpdates(instance *appsv1alpha1.Nexus) error {
@@ -204,7 +195,7 @@ func (r *NexusReconciler) ensureServerUpdates(instance *appsv1alpha1.Nexus) erro
 	return nil
 }
 
-func (r *NexusReconciler) updateNexus(nexus *appsv1alpha1.Nexus, originalNexus *appsv1alpha1.Nexus, err *error) {
+func (r *NexusReconciler) updateNexusStatus(nexus *appsv1alpha1.Nexus, err *error) {
 	r.Log.Info("Updating application status before leaving")
 
 	if statusErr := r.getNexusDeploymentStatus(nexus); statusErr != nil {
@@ -227,43 +218,18 @@ func (r *NexusReconciler) updateNexus(nexus *appsv1alpha1.Nexus, originalNexus *
 		r.Log.Error(urlErr, "Error while fetching Nexus URL status")
 	}
 
-	if !reflect.DeepEqual(originalNexus.Spec, nexus.Spec) {
-		r.Log.Info("Updating Nexus instance ", "Nexus instance", nexus.Name)
+	if !reflect.DeepEqual(nexus.Status, nexus.Status) {
+		r.Log.Info("Updating status", "nexus", framework.Key(nexus))
 		waitErr := wait.Poll(updatePollWaitTimeout, updateCancelTimeout, func() (bool, error) {
-			if updateErr := r.Update(context.TODO(), nexus); errors.IsConflict(updateErr) {
+			if updateErr := r.Status().Update(context.Background(), nexus); errors.IsConflict(updateErr) {
 				newNexus := &appsv1alpha1.Nexus{ObjectMeta: v1.ObjectMeta{
 					Name:      nexus.Name,
 					Namespace: nexus.Namespace,
 				}}
-				if err := r.Get(context.TODO(), framework.Key(newNexus), newNexus); err != nil {
+				if err := r.Get(context.Background(), framework.Key(newNexus), newNexus); err != nil {
 					return false, err
 				}
-				// we override only the spec, which we are interested into
-				newNexus.Spec = nexus.Spec
-				nexus = newNexus
-				return false, nil
-			} else if updateErr != nil {
-				return false, updateErr
-			}
-			return true, nil
-		})
-		if waitErr != nil {
-			r.Log.Error(waitErr, "Error while updating Nexus status")
-		}
-	}
-
-	if !reflect.DeepEqual(originalNexus.Status, nexus.Status) {
-		r.Log.Info("Updating status for ", "Nexus instance", nexus.Name)
-		waitErr := wait.Poll(updatePollWaitTimeout, updateCancelTimeout, func() (bool, error) {
-			if updateErr := r.Status().Update(context.TODO(), nexus); errors.IsConflict(updateErr) {
-				newNexus := &appsv1alpha1.Nexus{ObjectMeta: v1.ObjectMeta{
-					Name:      nexus.Name,
-					Namespace: nexus.Namespace,
-				}}
-				if err := r.Get(context.TODO(), framework.Key(newNexus), newNexus); err != nil {
-					return false, err
-				}
-				// we override only the spec, which we are interested into
+				// we override only the status, which we are interested into
 				newNexus.Status = nexus.Status
 				nexus = newNexus
 				return false, nil

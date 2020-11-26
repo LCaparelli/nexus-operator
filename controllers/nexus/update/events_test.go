@@ -24,23 +24,25 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/m88i/nexus-operator/api/v1alpha1"
+	"github.com/m88i/nexus-operator/pkg/framework"
 	"github.com/m88i/nexus-operator/pkg/test"
 )
 
 func TestCreateUpdateSuccessEvent(t *testing.T) {
 	nexus := &v1alpha1.Nexus{ObjectMeta: metav1.ObjectMeta{Name: "nexus", Namespace: "test"}}
 	client := test.NewFakeClientBuilder().Build()
+	framework.SetClient(client)
 	tag := "3.25.0"
 
 	// first, let's test a failure
 	client.SetMockErrorForOneRequest(fmt.Errorf("mock err"))
-	createUpdateSuccessEvent(nexus, client.Scheme(), client, tag)
+	createUpdateSuccessEvent(nexus, client, tag)
 	eventList := &corev1.EventList{}
 	_ = client.List(ctx.TODO(), eventList)
 	assert.Len(t, eventList.Items, 0)
 
 	// now a successful one
-	createUpdateSuccessEvent(nexus, client.Scheme(), client, tag)
+	createUpdateSuccessEvent(nexus, client, tag)
 	_ = client.List(ctx.TODO(), eventList)
 	assert.Len(t, eventList.Items, 1)
 	event := eventList.Items[0]
@@ -50,17 +52,18 @@ func TestCreateUpdateSuccessEvent(t *testing.T) {
 func TestCreateUpdateFailureEvent(t *testing.T) {
 	nexus := &v1alpha1.Nexus{ObjectMeta: metav1.ObjectMeta{Name: "nexus", Namespace: "test"}}
 	client := test.NewFakeClientBuilder().Build()
+	framework.SetClient(client)
 	tag := "3.25.0"
 
 	// first, let's test a failure
 	client.SetMockErrorForOneRequest(fmt.Errorf("mock err"))
-	createUpdateFailureEvent(nexus, client.Scheme(), client, tag)
+	createUpdateFailureEvent(nexus, client, tag)
 	eventList := &corev1.EventList{}
 	_ = client.List(ctx.TODO(), eventList)
 	assert.Len(t, eventList.Items, 0)
 
 	// now a successful one
-	createUpdateFailureEvent(nexus, client.Scheme(), client, tag)
+	createUpdateFailureEvent(nexus, client, tag)
 	_ = client.List(ctx.TODO(), eventList)
 	assert.Len(t, eventList.Items, 1)
 	event := eventList.Items[0]

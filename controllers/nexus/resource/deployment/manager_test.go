@@ -27,7 +27,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/m88i/nexus-operator/api/v1alpha1"
-	"github.com/m88i/nexus-operator/controllers/nexus/resource/validation"
+	"github.com/m88i/nexus-operator/pkg/admission"
 	"github.com/m88i/nexus-operator/pkg/logger"
 	"github.com/m88i/nexus-operator/pkg/test"
 )
@@ -38,10 +38,10 @@ var (
 		Spec: v1alpha1.NexusSpec{
 			AutomaticUpdate:    v1alpha1.NexusAutomaticUpdate{Disabled: true},
 			ServiceAccountName: "nexus-test",
-			Resources:          validation.DefaultResources,
-			Image:              validation.NexusCommunityImage,
-			LivenessProbe:      validation.DefaultProbe.DeepCopy(),
-			ReadinessProbe:     validation.DefaultProbe.DeepCopy(),
+			Resources:          admission.DefaultResources,
+			Image:              admission.NexusCommunityImage,
+			LivenessProbe:      admission.DefaultProbe.DeepCopy(),
+			ReadinessProbe:     admission.DefaultProbe.DeepCopy(),
 		},
 	}
 )
@@ -341,12 +341,12 @@ func Test_equalPullPolicies(t *testing.T) {
 
 	// now let's set the latest tag on the images so we can test for the PullAlways pull policy in that scenario as well
 	depDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullAlways
-	reqDeployment.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s:%s", validation.NexusCommunityImage, "latest")
+	reqDeployment.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s:%s", admission.NexusCommunityImage, "latest")
 	assert.True(t, equalPullPolicies(depDeployment, reqDeployment))
 
 	// now with an actual tag and empty pullPolicy on the required deployment
-	reqDeployment.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s:%s", validation.NexusCommunityImage, "3.25.0")
-	depDeployment.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s:%s", validation.NexusCommunityImage, "3.25.0")
+	reqDeployment.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s:%s", admission.NexusCommunityImage, "3.25.0")
+	depDeployment.Spec.Template.Spec.Containers[0].Image = fmt.Sprintf("%s:%s", admission.NexusCommunityImage, "3.25.0")
 	depDeployment.Spec.Template.Spec.Containers[0].ImagePullPolicy = corev1.PullIfNotPresent
 	assert.True(t, equalPullPolicies(depDeployment, reqDeployment))
 

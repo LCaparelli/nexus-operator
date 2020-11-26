@@ -15,7 +15,6 @@
 package update
 
 import (
-	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/m88i/nexus-operator/api/v1alpha1"
@@ -27,15 +26,15 @@ const (
 	failedUpdateReason     = "UpdateFailed"
 )
 
-func createUpdateSuccessEvent(nexus *v1alpha1.Nexus, scheme *runtime.Scheme, c client.Client, tag string) {
-	err := kubernetes.RaiseInfoEventf(nexus, scheme, c, successfulUpdateReason, "Successfully updated to %s", tag)
+func createUpdateSuccessEvent(nexus *v1alpha1.Nexus, c client.Client, tag string) {
+	err := kubernetes.RaiseInfoEventf(nexus, successfulUpdateReason, "Successfully updated to %s", tag)
 	if err != nil {
 		log.Error(err, "Unable to raise event for successful update", "tag", tag)
 	}
 }
 
-func createUpdateFailureEvent(nexus *v1alpha1.Nexus, scheme *runtime.Scheme, c client.Client, tag string) {
-	err := kubernetes.RaiseWarnEventf(nexus, scheme, c, failedUpdateReason, "Failed to update to %s. Human intervention may be required", tag)
+func createUpdateFailureEvent(nexus *v1alpha1.Nexus, c client.Client, tag string) {
+	err := kubernetes.RaiseWarnEventf(nexus, failedUpdateReason, "Failed to update to %s. Human intervention may be required", tag)
 	if err != nil {
 		log.Error(err, "Unable to raise event for failed update", "tag", tag)
 	}

@@ -21,11 +21,10 @@ import (
 	"strings"
 
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/m88i/nexus-operator/api/v1alpha1"
-	"github.com/m88i/nexus-operator/pkg/logger"
+	"github.com/m88i/nexus-operator/pkg/framework"
 )
 
 const (
@@ -47,7 +46,7 @@ const (
 // "idle" transitions into "updating" if isNewUpdate == true.
 // "updating" transitions back to "idle" if automatic updates get disabled or if the update fails/succeeds.
 // "updating" transitions to itself if isNewUpdate == true.
-func HandleUpdate(nexus *v1alpha1.Nexus, deployed, required *appsv1.Deployment, scheme *runtime.Scheme, c client.Client) error {
+func HandleUpdate(nexus *v1alpha1.Nexus, deployed, required *appsv1.Deployment) error {
 	if nexus.Spec.AutomaticUpdate.Disabled || differentImagesOrMinors(deployed, required) {
 		if alreadyUpdating(nexus) {
 			// we were in an update, so let's clear its status
@@ -55,9 +54,6 @@ func HandleUpdate(nexus *v1alpha1.Nexus, deployed, required *appsv1.Deployment, 
 		}
 		return nil
 	}
-
-	log = logger.GetLoggerWithResource(monitorLogName, nexus)
-	defer func() { log = logger.GetLogger(defaultLogName) }()
 
 	// it's important to check if this is a new update before checking ongoing updates because
 	// if this is a new update, the one that was happening before no longer matters
@@ -82,6 +78,7 @@ func HandleUpdate(nexus *v1alpha1.Nexus, deployed, required *appsv1.Deployment, 
 		return nil
 	}
 
+	c := framework.Client()
 	for _, condition := range deployed.Status.Conditions {
 		if condition.Type == appsv1.DeploymentProgressing && condition.Status == "False" {
 			log.Warn("Update failed: Human intervention may be required", "target tag", targetTag, "Reason", condition.Reason, "Message", condition.Message)
@@ -95,7 +92,7 @@ func HandleUpdate(nexus *v1alpha1.Nexus, deployed, required *appsv1.Deployment, 
 
 			// we don't want to create spurious events, so we only raise it after we've disabled updates
 			// and we know this part of the function won't be reached again
-			createUpdateFailureEvent(nexus, scheme, c, targetTag)
+			createUpdateFailureEvent(nexus, c, targetTag)
 			return nil
 		}
 
@@ -103,7 +100,7 @@ func HandleUpdate(nexus *v1alpha1.Nexus, deployed, required *appsv1.Deployment, 
 			log.Info("Successfully updated", "tag", targetTag)
 			// the Nexus status update can be delayed, let's leave it to the reconciler
 			nexus.Status.UpdateConditions = append(nexus.Status.UpdateConditions, fmt.Sprintf(updateOKFormat, previousTag, targetTag))
-			createUpdateSuccessEvent(nexus, scheme, c, targetTag)
+			createUpdateSuccessEvent(nexus, c, targetTag)
 			return nil
 		}
 	}
@@ -127,7 +124,7 @@ func isNewUpdate(deployed, required *appsv1.Deployment) (updating bool, previous
 	deployedImageParts := strings.Split(depImage, ":")
 	requiredImageParts := strings.Split(reqImage, ":")
 
-	updating, err := HigherVersion(requiredImageParts[1], deployedImageParts[1])
+	updating, err := framework.HigherVersion(requiredImageParts[1], deployedImageParts[1])
 	if err != nil {
 		log.Error(err, "Unable to check if the required Deployment is an update when comparing to the deployed one", "deployment", required.Name)
 		return
@@ -159,9 +156,9 @@ func differentImagesOrMinors(deployed, required *appsv1.Deployment) bool {
 	}
 
 	// we should be able to assume there will be no parsing error, we just created this deployment in the reconcile loop
-	reqMinor, _ := getMinor(requiredImageParts[1])
+	reqMinor, _ := framework.ParseMinor(requiredImageParts[1])
 	// the deployed one, on the other hand, might have been tampered with
-	depMinor, err := getMinor(deployedImageParts[1])
+	depMinor, err := framework.ParseMinor(deployedImageParts[1])
 	if err != nil {
 		log.Error(err, "Unable to parse the deployed Deployment's tag. Cannot determine if this is an update. Has it been tampered with?", "deployment", deployed.Name)
 		return true

@@ -17,8 +17,6 @@ package test
 import (
 	ctx "context"
 	"fmt"
-	"reflect"
-	"strings"
 	"testing"
 
 	routev1 "github.com/openshift/api/route/v1"
@@ -38,11 +36,6 @@ func TestNewFakeClientBuilder(t *testing.T) {
 	nexus := &v1alpha1.Nexus{}
 	b := NewFakeClientBuilder(nexus)
 
-	// client.Client
-	assert.Len(t, b.scheme.KnownTypes(v1alpha1.GroupVersion), 10)
-	assert.Contains(t, b.scheme.KnownTypes(v1alpha1.GroupVersion), strings.Split(reflect.TypeOf(&v1alpha1.Nexus{}).String(), ".")[1])
-	assert.Contains(t, b.scheme.KnownTypes(v1alpha1.GroupVersion), strings.Split(reflect.TypeOf(&v1alpha1.NexusList{}).String(), ".")[1])
-
 	// discovery.DiscoveryInterface
 	assert.True(t, resourceListsContainsGroupVersion(b.resources, v1alpha1.GroupVersion.String()))
 
@@ -54,11 +47,6 @@ func TestNewFakeClientBuilder(t *testing.T) {
 func TestFakeClientBuilder_OnOpenshift(t *testing.T) {
 	b := NewFakeClientBuilder().OnOpenshift()
 
-	// client.Client
-	assert.Len(t, b.scheme.KnownTypes(routev1.GroupVersion), 10)
-	assert.Contains(t, b.scheme.KnownTypes(routev1.GroupVersion), strings.Split(reflect.TypeOf(&routev1.Route{}).String(), ".")[1])
-	assert.Contains(t, b.scheme.KnownTypes(routev1.GroupVersion), strings.Split(reflect.TypeOf(&routev1.RouteList{}).String(), ".")[1])
-
 	// discovery.DiscoveryInterface
 	assert.True(t, resourceListsContainsGroupVersion(b.resources, routev1.GroupVersion.String()))
 	assert.True(t, resourceListsContainsGroupVersion(b.resources, openshiftGroupVersion))
@@ -67,22 +55,12 @@ func TestFakeClientBuilder_OnOpenshift(t *testing.T) {
 func TestFakeClientBuilder_WithIngress(t *testing.T) {
 	b := NewFakeClientBuilder().WithIngress()
 
-	// client.Client
-	assert.Len(t, b.scheme.KnownTypes(networkingv1.SchemeGroupVersion), 14)
-	assert.Contains(t, b.scheme.KnownTypes(networkingv1.SchemeGroupVersion), strings.Split(reflect.TypeOf(&networkingv1.Ingress{}).String(), ".")[1])
-	assert.Contains(t, b.scheme.KnownTypes(networkingv1.SchemeGroupVersion), strings.Split(reflect.TypeOf(&networkingv1.IngressList{}).String(), ".")[1])
-
 	// discovery.DiscoveryInterface
 	assert.True(t, resourceListsContainsGroupVersion(b.resources, networkingv1.SchemeGroupVersion.String()))
 }
 
 func TestFakeClientBuilder_WithLegacyIngress(t *testing.T) {
 	b := NewFakeClientBuilder().WithLegacyIngress()
-
-	// client.Client
-	assert.Len(t, b.scheme.KnownTypes(networkingv1beta1.SchemeGroupVersion), 12)
-	assert.Contains(t, b.scheme.KnownTypes(networkingv1beta1.SchemeGroupVersion), strings.Split(reflect.TypeOf(&networkingv1beta1.Ingress{}).String(), ".")[1])
-	assert.Contains(t, b.scheme.KnownTypes(networkingv1beta1.SchemeGroupVersion), strings.Split(reflect.TypeOf(&networkingv1beta1.IngressList{}).String(), ".")[1])
 
 	// discovery.DiscoveryInterface
 	assert.True(t, resourceListsContainsGroupVersion(b.resources, networkingv1beta1.SchemeGroupVersion.String()))
@@ -415,9 +393,4 @@ func TestFakeClient_DeleteAllOf(t *testing.T) {
 func TestFakeClient_Status(t *testing.T) {
 	c := NewFakeClientBuilder().Build()
 	assert.Equal(t, c.client.Status(), c.Status())
-}
-
-func TestFakeClient_Scheme(t *testing.T) {
-	c := NewFakeClientBuilder().Build()
-	assert.Equal(t, c.scheme, c.Scheme())
 }

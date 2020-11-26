@@ -22,21 +22,23 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/m88i/nexus-operator/api/v1alpha1"
+	"github.com/m88i/nexus-operator/pkg/framework"
 	"github.com/m88i/nexus-operator/pkg/test"
 )
 
 func TestRaiseInfoEventf(t *testing.T) {
 	nexus := &v1alpha1.Nexus{ObjectMeta: metav1.ObjectMeta{Name: "nexus", Namespace: "test"}}
 	client := test.NewFakeClientBuilder().Build()
+	framework.SetClient(client)
+
 	reason := "test-reason"
 	format := "%s %s"
 	message := "test-message"
 	extraArg := "extra"
 
-	assert.NoError(t, RaiseInfoEventf(nexus, client.Scheme(), client, reason, format, message, extraArg))
+	assert.NoError(t, RaiseInfoEventf(nexus, reason, format, message, extraArg))
 	eventList := &corev1.EventList{}
 	assert.NoError(t, client.List(ctx.TODO(), eventList))
 	event := eventList.Items[0]
@@ -49,12 +51,14 @@ func TestRaiseInfoEventf(t *testing.T) {
 func TestRaiseWarnEventf(t *testing.T) {
 	nexus := &v1alpha1.Nexus{ObjectMeta: metav1.ObjectMeta{Name: "nexus", Namespace: "test"}}
 	client := test.NewFakeClientBuilder().Build()
+	framework.SetClient(client)
+
 	reason := "test-reason"
 	format := "%s %s"
 	message := "test-message"
 	extraArg := "extra"
 
-	assert.NoError(t, RaiseWarnEventf(nexus, client.Scheme(), client, reason, format, message, extraArg))
+	assert.NoError(t, RaiseWarnEventf(nexus, reason, format, message, extraArg))
 	eventList := &corev1.EventList{}
 	assert.NoError(t, client.List(ctx.TODO(), eventList))
 	event := eventList.Items[0]
@@ -67,19 +71,11 @@ func TestRaiseWarnEventf(t *testing.T) {
 func TestServerFailure(t *testing.T) {
 	nexus := &v1alpha1.Nexus{ObjectMeta: metav1.ObjectMeta{Name: "nexus", Namespace: "test"}}
 	client := test.NewFakeClientBuilder().Build()
+	framework.SetClient(client)
+
 	reason := "test-reason"
 	message := "test-message"
 
 	client.SetMockErrorForOneRequest(fmt.Errorf("mock-error"))
-	assert.Error(t, RaiseInfoEventf(nexus, client.Scheme(), client, reason, message))
-}
-
-func TestReferenceFailure(t *testing.T) {
-	nexus := &v1alpha1.Nexus{ObjectMeta: metav1.ObjectMeta{Name: "nexus", Namespace: "test"}}
-	client := test.NewFakeClientBuilder().Build()
-	reason := "test-reason"
-	message := "test-message"
-
-	// let's pass in the default scheme
-	assert.Error(t, RaiseInfoEventf(nexus, runtime.NewScheme(), client, reason, message))
+	assert.Error(t, RaiseInfoEventf(nexus, reason, message))
 }
